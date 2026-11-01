@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 const fieldClass =
-  'mt-1 h-12 w-full border-2 border-ink bg-paper px-3 text-base text-ink placeholder:text-pencil'
+  'mt-1 h-12 w-full rounded-lg border border-line bg-surface px-3 text-base text-fg placeholder:text-muted'
 
 const ERROR_TEXT: Record<string, string> = {
   'Invalid login credentials': 'Неправильна пошта або пароль.',
@@ -41,9 +41,9 @@ export function AuthScreen({ client }: { client: SupabaseClient }) {
   }
 
   return (
-    <div className="sheet">
-      <main className="mx-auto max-w-md py-12 pr-4 pl-[calc(var(--margin)+16px)]">
-        <h1 className="font-display text-7xl leading-[72px] font-bold">Планер</h1>
+    <div>
+      <main className="mx-auto max-w-md px-4 py-12">
+        <h1 className="text-3xl leading-10 font-semibold">Планер</h1>
         <form onSubmit={submit} className="mt-6 flex flex-col gap-4">
           <label className="block font-medium">
             Пошта
@@ -68,14 +68,14 @@ export function AuthScreen({ client }: { client: SupabaseClient }) {
               onChange={(e) => setPassword(e.target.value)}
             />
           </label>
-          {error && <p role="alert" className="font-medium text-rule">{error}</p>}
+          {error && <p role="alert" className="font-medium text-danger">{error}</p>}
           {notice && <p role="status">{notice}</p>}
-          <button disabled={busy} className="h-12 bg-ink font-semibold text-paper disabled:opacity-60">
+          <button disabled={busy} className="h-12 rounded-lg bg-accent font-semibold text-white disabled:opacity-60">
             {mode === 'signin' ? 'Увійти' : 'Створити акаунт'}
           </button>
           <button
             type="button"
-            className="h-12 font-medium underline underline-offset-4"
+            className="h-12 font-medium text-accent-bright"
             onClick={() => {
               setMode(mode === 'signin' ? 'signup' : 'signin')
               setError(null)

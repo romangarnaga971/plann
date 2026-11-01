@@ -107,29 +107,29 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
   const isEmpty = tasks !== null && view !== 'week' && groups.length === 0
 
   return (
-    <div className="sheet mx-auto max-w-2xl">
+    <div className="mx-auto max-w-2xl">
       <main className="pb-52">
-        <header className="flex items-start justify-between pt-6 pr-3 pl-[calc(var(--margin)+14px)]">
+        <header className="flex items-start justify-between px-4 pt-6">
           <div className="min-w-0">
-            <h1 className="font-display text-7xl leading-[72px] font-bold">{current.label}</h1>
-            <p className="h-6 text-pencil first-letter:uppercase">{subtitle}</p>
+            <h1 className="text-3xl leading-10 font-semibold">{current.label}</h1>
+            <p className="h-6 text-muted first-letter:uppercase">{subtitle}</p>
           </div>
           {onSignOut && (
-            <button onClick={onSignOut} className="h-11 shrink-0 px-2 text-sm font-medium underline underline-offset-4">
+            <button onClick={onSignOut} className="h-11 shrink-0 px-2 text-sm font-medium text-muted">
               Вийти
             </button>
           )}
         </header>
 
         <div className="mt-6">
-          {tasks === null && <p className="pl-[calc(var(--margin)+14px)] text-pencil">Завантажую задачі…</p>}
-          {isEmpty && <p className="pr-4 pl-[calc(var(--margin)+14px)] text-pencil">{EMPTY[view]}</p>}
+          {tasks === null && <p className="px-4 text-muted">Завантажую задачі…</p>}
+          {isEmpty && <p className="px-4 text-muted">{EMPTY[view]}</p>}
           {tasks !== null &&
             groups.map((group) => (
               <section key={group.key} className="mb-6">
                 {group.label && (
                   <h2
-                    className={`pl-[calc(var(--margin)+14px)] font-display text-[32px] leading-12 font-semibold first-letter:uppercase ${group.overdue ? 'text-rule' : ''}`}
+                    className={`px-4 pb-1 text-sm font-semibold first-letter:uppercase ${group.overdue ? 'text-danger' : 'text-muted'}`}
                   >
                     {group.label}
                   </h2>
@@ -155,17 +155,17 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
         <div className="mx-auto max-w-2xl">
           <div role="status" aria-live="polite" className="px-3 pb-2">
             {toast && (
-              <div className="flex items-center justify-between gap-3 bg-ink px-3 py-2 text-paper">
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-line bg-surface px-3 py-2 text-fg">
                 <span>{toast.text}</span>
                 {toast.undo && (
-                  <button onClick={toast.undo} className="h-8 shrink-0 font-semibold text-marker underline underline-offset-4">
+                  <button onClick={toast.undo} className="h-8 shrink-0 font-semibold text-accent-bright">
                     Повернути
                   </button>
                 )}
               </div>
             )}
           </div>
-          <div className="border-t-2 border-ink bg-paper pb-[env(safe-area-inset-bottom)]">
+          <div className="border-t border-line bg-bg pb-[env(safe-area-inset-bottom)]">
             <QuickAdd now={now} onAdd={addTask} />
             <nav aria-label="Вигляди" className="mt-1 grid grid-cols-4">
               {VIEWS.map((v) => {
@@ -176,7 +176,7 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
                     key={v.id}
                     aria-current={active ? 'page' : undefined}
                     onClick={() => setView(v.id)}
-                    className={`h-12 border-b-4 text-sm ${active ? 'border-ink font-semibold' : 'border-transparent text-pencil'}`}
+                    className={`h-12 border-b-2 text-sm ${active ? 'border-accent font-semibold text-accent-bright' : 'border-transparent text-muted'}`}
                   >
                     {v.label}
                     {count > 0 && <span className="ml-1 tabular-nums">{count}</span>}

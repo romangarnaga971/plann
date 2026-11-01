@@ -1,69 +1,50 @@
 @import 'tailwindcss';
 @import '@fontsource-variable/golos-text';
-@import '@fontsource-variable/sofia-sans-extra-condensed';
 
 @theme {
-  --color-paper: #f3f6fb;
-  --color-grid: #dbe5f2;
-  --color-ink: #2430a0;
-  --color-pencil: #55617f;
-  --color-rule: #d8434b;
-  --color-marker: #ffe45c;
-  --color-tagmark: #c9d8ff;
+  --color-bg: #000000;
+  --color-surface: #12151c;
+  --color-line: #2a2f3a;
+  --color-fg: #f2f4f8;
+  --color-muted: #9aa3b2;
+  --color-accent: #2563eb;
+  --color-accent-bright: #7aa7ff;
+  --color-danger: #ff7b7b;
   --font-sans: 'Golos Text Variable', system-ui, sans-serif;
-  --font-display: 'Sofia Sans Extra Condensed Variable', 'Golos Text Variable', sans-serif;
 }
 
 :root {
-  --cell: 24px;
-  --margin: 68px;
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 body {
   margin: 0;
   min-height: 100dvh;
-  color: var(--color-ink);
+  color: var(--color-fg);
+  background-color: var(--color-bg);
   font-family: var(--font-sans);
   font-size: 16px;
-  line-height: var(--cell);
-  background-color: var(--color-paper);
-  background-image:
-    linear-gradient(var(--color-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--color-grid) 1px, transparent 1px);
-  background-size: var(--cell) var(--cell);
+  line-height: 24px;
 }
 
-:focus-visible {
-  outline: 2px solid var(--color-ink);
-  outline-offset: 2px;
-}
-
-/* Поля зошита: червона лінія на всю висоту аркуша. */
-.sheet {
-  position: relative;
-  min-height: 100dvh;
-}
-.sheet::before {
-  content: '';
-  position: absolute;
-  inset: 0 auto 0 var(--margin);
-  width: 2px;
-  background: var(--color-rule);
-  pointer-events: none;
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-accent-bright);
+    outline-offset: 2px;
+  }
 }
 
 .strike {
   background-image: linear-gradient(currentColor, currentColor);
   background-repeat: no-repeat;
   background-position: left 55%;
-  background-size: 0 2px;
+  background-size: 0 1px;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
-  transition: background-size 220ms ease-out;
+  transition: background-size 200ms ease-out;
 }
 .strike[data-done='true'] {
-  background-size: 100% 2px;
+  background-size: 100% 1px;
 }
 
 @media (prefers-reduced-motion: reduce) {

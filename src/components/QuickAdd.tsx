@@ -3,8 +3,8 @@ import { parseLine, type ParsedLine, type Span } from '../lib/parse'
 import { formatWhen } from '../lib/views'
 
 const MARK_CLASS: Record<Span['kind'], string> = {
-  date: 'bg-marker',
-  tag: 'bg-tagmark',
+  date: 'bg-accent',
+  tag: 'bg-line',
 }
 
 function highlight(text: string, spans: Span[]) {
@@ -13,7 +13,7 @@ function highlight(text: string, spans: Span[]) {
   for (const span of spans) {
     parts.push(text.slice(cursor, span.start))
     parts.push(
-      <mark key={span.start} className={`${MARK_CLASS[span.kind]} text-ink`}>
+      <mark key={span.start} className={`${MARK_CLASS[span.kind]} rounded-sm text-fg`}>
         {text.slice(span.start, span.end)}
       </mark>,
     )
@@ -44,17 +44,17 @@ export function QuickAdd({ now, onAdd }: { now: Date; onAdd: (parsed: ParsedLine
 
   return (
     <form onSubmit={submit} className="px-3 pt-2">
-      <p className="h-6 truncate text-sm text-pencil" aria-live="polite">
+      <p className="h-6 truncate text-sm text-muted" aria-live="polite">
         {hasText && (
           <>
             Буде {parsed.dueAt ? 'на ' : ''}
-            <span className="font-medium text-ink">{formatWhen(parsed.dueAt, parsed.hasTime, now)}</span>
+            <span className="font-medium text-fg">{formatWhen(parsed.dueAt, parsed.hasTime, now)}</span>
             {parsed.tags.length > 0 && ` ${parsed.tags.map((t) => `#${t}`).join(' ')}`}
           </>
         )}
       </p>
       <div className="flex gap-2">
-        <div className="relative min-w-0 flex-1 border-2 border-ink bg-paper">
+        <div className="relative min-w-0 flex-1 rounded-lg border-2 border-line bg-surface focus-within:border-accent">
           <div
             ref={mirrorRef}
             aria-hidden
@@ -65,7 +65,7 @@ export function QuickAdd({ now, onAdd }: { now: Date; onAdd: (parsed: ParsedLine
           <input
             ref={inputRef}
             aria-label="Нова задача"
-            className="relative block h-11 w-full bg-transparent px-3 text-base text-transparent caret-ink outline-none placeholder:text-pencil"
+            className="relative block h-11 w-full bg-transparent px-3 text-base text-transparent caret-fg outline-none placeholder:text-muted"
             placeholder="кава завтра 9:00 #дім"
             autoComplete="off"
             enterKeyHint="done"
@@ -78,7 +78,7 @@ export function QuickAdd({ now, onAdd }: { now: Date; onAdd: (parsed: ParsedLine
         </div>
         <button
           disabled={!parsed.title}
-          className="h-12 shrink-0 bg-ink px-4 font-semibold text-paper disabled:opacity-40"
+          className="h-12 shrink-0 rounded-lg bg-accent px-4 font-semibold text-white disabled:opacity-40"
         >
           Додати
         </button>
