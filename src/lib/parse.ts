@@ -53,7 +53,7 @@ export function parseLine(raw: string, ref: Date = new Date()): ParsedLine {
 
   for (const match of text.matchAll(TAG_RE)) {
     spans.push({ start: match.index, end: match.index + match[0].length, kind: 'tag' })
-    const tag = match[0].slice(1)
+    const tag = match[0].slice(1).toLowerCase()
     if (!tags.includes(tag)) tags.push(tag)
   }
 

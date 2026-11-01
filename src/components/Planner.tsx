@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ParsedLine } from '../lib/parse'
-import type { Task, TaskStore } from '../lib/store'
-import { countFor, formatWhen, groupsFor, viewSubtitle, VIEWS, type View } from '../lib/views'
+import type { Tag, Task, TaskStore } from '../lib/store'
+import { buildFolders } from '../lib/tags'
+import { countFor, folderGroups, formatWhen, groupsFor, viewSubtitle, VIEWS, type View } from '../lib/views'
+import { ArchiveList } from './ArchiveList'
+import { FolderCabinet } from './FolderCabinet'
 import { QuickAdd } from './QuickAdd'
 import { TaskRow } from './TaskRow'
 
@@ -19,7 +22,11 @@ const EMPTY: Record<View, string> = {
 
 export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: () => void }) {
   const [tasks, setTasks] = useState<Task[] | null>(null)
+  const [tags, setTags] = useState<Tag[]>([])
   const [view, setView] = useState<View>('today')
+  const [folder, setFolder] = useState<string | null>(null)
+  const [archiveOpen, setArchiveOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const [now, setNow] = useState(() => new Date())
   const [toast, setToast] = useState<Toast | null>(null)
   const toastTimer = useRef<number | undefined>(undefined)
@@ -31,6 +38,8 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
   }, [])
 
   const load = useCallback(async () => {
+    // Папки не повинні заважати задачам, якщо таблицю тегів ще не створено.
+    store.listTags().then(setTags, () => {})
     try {
       setTasks(await store.list())
     } catch {
@@ -78,6 +87,7 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
       tags: parsed.tags,
       done: false,
       done_at: null,
+      archived_at: null,
       created_at: new Date().toISOString(),
     })
     showToast({ text: `Додано: ${formatWhen(parsed.dueAt, parsed.hasTime, new Date())}` })
@@ -100,18 +110,114 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
     })
   }
 
+  function archiveTask(task: Task) {
+    saveTask({ ...task, archived_at: new Date().toISOString() })
+    showToast({
+      text: 'Задачу перенесено в архів',
+      undo: () => {
+        setToast(null)
+        saveTask({ ...task, archived_at: null })
+      },
+    })
+  }
+
+  function clearArchive() {
+    setTasks((current) => (current ?? []).filter((t) => !t.archived_at))
+    persist(store.clearArchive())
+    showToast({ text: 'Архів очищено' })
+  }
+
+  function saveFolder(previous: string | null, name: string, color: string) {
+    setTags((current) => [...current.filter((t) => t.name !== name && t.name !== previous), { name, color }])
+    persist(store.saveTag({ name, color }))
+    if (previous && previous !== name) {
+      persist(store.removeTag(previous))
+      for (const task of list.filter((t) => t.tags.includes(previous))) {
+        saveTask({ ...task, tags: [...new Set(task.tags.map((t) => (t === previous ? name : t)))] })
+      }
+      if (folder === previous) setFolder(name)
+    }
+  }
+
+  function deleteFolder(name: string) {
+    const affected = list.filter((t) => t.tags.includes(name))
+    const tag = folders.find((f) => f.name === name)!
+    setTags((current) => current.filter((t) => t.name !== name))
+    persist(store.removeTag(name))
+    for (const task of affected) saveTask({ ...task, tags: task.tags.filter((t) => t !== name) })
+    if (folder === name) setFolder(null)
+    showToast({
+      text: 'Папку видалено, задачі залишилися',
+      undo: () => {
+        setToast(null)
+        setTags((current) => [...current, { name, color: tag.color }])
+        persist(store.saveTag({ name, color: tag.color }))
+        for (const task of affected) saveTask(task)
+      },
+    })
+  }
+
   const list = tasks ?? []
-  const groups = groupsFor(view, list, now)
+  const active = list.filter((t) => !t.archived_at)
+  const archived = list.filter((t) => t.archived_at)
+  const folders = buildFolders(tags, list)
+  const openFolder = folder && !archiveOpen ? folders.find((f) => f.name === folder) ?? null : null
+  const groups = archiveOpen
+    ? []
+    : openFolder
+      ? folderGroups(openFolder.name, active)
+      : groupsFor(view, active, now)
   const current = VIEWS.find((v) => v.id === view)!
-  const subtitle = viewSubtitle(view, now)
-  const isEmpty = tasks !== null && view !== 'week' && groups.length === 0
+  const subtitle = archiveOpen
+    ? `Задач: ${archived.length}`
+    : openFolder
+    ? openFolder.count > 0
+      ? `Незроблених: ${openFolder.count}`
+      : 'Усе зроблено'
+    : viewSubtitle(view, now)
+  const isEmpty = tasks !== null && !archiveOpen && (openFolder !== null || view !== 'week') && groups.length === 0
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <main className="pb-52">
-        <header className="flex items-start justify-between px-4 pt-6">
-          <div className="min-w-0">
-            <h1 className="text-3xl leading-10 font-semibold">{current.label}</h1>
+    <div className="md:pl-72">
+      <FolderCabinet
+        folders={folders}
+        selected={openFolder?.name ?? null}
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        archiveCount={archived.length}
+        archiveOpen={archiveOpen}
+        onOpenArchive={() => {
+          setArchiveOpen(true)
+          setFolder(null)
+          setMenuOpen(false)
+        }}
+        onSelect={(name) => {
+          setFolder(name)
+          setArchiveOpen(false)
+          setMenuOpen(false)
+        }}
+        onSave={saveFolder}
+        onDelete={deleteFolder}
+      />
+      <main className="mx-auto max-w-2xl pb-52">
+        <header className="flex items-start gap-1 px-4 pt-6">
+          <button
+            onClick={() => setMenuOpen(true)}
+            aria-label="Відкрити папки"
+            aria-expanded={menuOpen}
+            className="-ml-2 grid size-11 shrink-0 place-items-center md:hidden"
+          >
+            <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
+            </svg>
+          </button>
+          <div className="min-w-0 flex-1">
+            <h1 className="flex items-center gap-2 text-3xl leading-10 font-semibold">
+              {openFolder && (
+                <span className="size-4 shrink-0 rounded-full" style={{ backgroundColor: openFolder.color }} />
+              )}
+              <span className="truncate">{archiveOpen ? 'Архів' : openFolder ? openFolder.name : current.label}</span>
+            </h1>
             <p className="h-6 text-muted first-letter:uppercase">{subtitle}</p>
           </div>
           {onSignOut && (
@@ -123,7 +229,15 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
 
         <div className="mt-6">
           {tasks === null && <p className="px-4 text-muted">Завантажую задачі…</p>}
-          {isEmpty && <p className="px-4 text-muted">{EMPTY[view]}</p>}
+          {isEmpty && <p className="px-4 text-muted">{openFolder ? 'У цій папці порожньо. Напишіть задачу внизу, і вона потрапить сюди.' : EMPTY[view]}</p>}
+          {tasks !== null && archiveOpen && (
+            <ArchiveList
+              tasks={archived}
+              folders={folders}
+              onRestore={(task) => saveTask({ ...task, archived_at: null })}
+              onClear={clearArchive}
+            />
+          )}
           {tasks !== null &&
             groups.map((group) => (
               <section key={group.key} className="mb-6">
@@ -140,7 +254,10 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
                       key={task.id}
                       task={task}
                       overdue={group.overdue}
+                      showDate={openFolder !== null}
+                      folders={folders}
                       onToggle={() => toggleTask(task)}
+                      onArchive={() => archiveTask(task)}
                       onSave={saveTask}
                       onDelete={() => deleteTask(task)}
                     />
@@ -151,7 +268,7 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
         </div>
       </main>
 
-      <div className="fixed inset-x-0 bottom-0 z-10">
+      <div className="fixed inset-x-0 bottom-0 z-10 md:left-72">
         <div className="mx-auto max-w-2xl">
           <div role="status" aria-live="polite" className="px-3 pb-2">
             {toast && (
@@ -166,17 +283,21 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
             )}
           </div>
           <div className="border-t border-line bg-bg pb-[env(safe-area-inset-bottom)]">
-            <QuickAdd now={now} onAdd={addTask} />
+            <QuickAdd now={now} folders={folders} folder={openFolder?.name ?? null} onAdd={addTask} />
             <nav aria-label="Вигляди" className="mt-1 grid grid-cols-4">
               {VIEWS.map((v) => {
-                const count = countFor(v.id, list, now)
-                const active = v.id === view
+                const count = countFor(v.id, active, now)
+                const isCurrent = !openFolder && !archiveOpen && v.id === view
                 return (
                   <button
                     key={v.id}
-                    aria-current={active ? 'page' : undefined}
-                    onClick={() => setView(v.id)}
-                    className={`h-12 border-b-2 text-sm ${active ? 'border-accent font-semibold text-accent-bright' : 'border-transparent text-muted'}`}
+                    aria-current={isCurrent ? 'page' : undefined}
+                    onClick={() => {
+                      setView(v.id)
+                      setFolder(null)
+                      setArchiveOpen(false)
+                    }}
+                    className={`h-12 border-b-2 text-sm ${isCurrent ? 'border-accent font-semibold text-accent-bright' : 'border-transparent text-muted'}`}
                   >
                     {v.label}
                     {count > 0 && <span className="ml-1 tabular-nums">{count}</span>}

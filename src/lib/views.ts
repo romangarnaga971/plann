@@ -92,6 +92,22 @@ export function groupsFor(view: View, tasks: Task[], now: Date): Group[] {
   ]
 }
 
+// Усі задачі папки: спершу незроблені за датою, задачі без дати в кінці.
+export function folderGroups(tag: string, tasks: Task[]): Group[] {
+  const list = tasks.filter((t) => t.tags.includes(tag))
+  const active = list
+    .filter((t) => !t.done)
+    .sort((a, b) => {
+      if (!a.due_at || !b.due_at) return a.due_at ? -1 : b.due_at ? 1 : a.created_at < b.created_at ? -1 : 1
+      return a.due_at < b.due_at ? -1 : 1
+    })
+  const done = list.filter((t) => t.done).sort((a, b) => ((a.done_at ?? '') < (b.done_at ?? '') ? 1 : -1))
+  return [
+    ...(active.length ? [{ key: 'active', label: null, overdue: false, tasks: active }] : []),
+    ...(done.length ? [{ key: 'done', label: 'Зроблені', overdue: false, tasks: done }] : []),
+  ]
+}
+
 export function countFor(view: View, tasks: Task[], now: Date): number {
   return groupsFor(view, tasks, now).reduce((sum, g) => sum + g.tasks.filter((t) => !t.done).length, 0)
 }

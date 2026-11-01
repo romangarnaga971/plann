@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, type FormEvent } from 'react'
 import { parseLine, type ParsedLine, type Span } from '../lib/parse'
+import { normalizeTag, type Folder } from '../lib/tags'
 import { formatWhen } from '../lib/views'
 
 const MARK_CLASS: Record<Span['kind'], string> = {
@@ -23,11 +24,34 @@ function highlight(text: string, spans: Span[]) {
   return parts
 }
 
-export function QuickAdd({ now, onAdd }: { now: Date; onAdd: (parsed: ParsedLine) => void }) {
+export function QuickAdd({
+  now,
+  folders,
+  folder,
+  onAdd,
+}: {
+  now: Date
+  folders: Folder[]
+  folder: string | null
+  onAdd: (parsed: ParsedLine) => void
+}) {
   const [text, setText] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const mirrorRef = useRef<HTMLDivElement>(null)
   const parsed = useMemo(() => parseLine(text, now), [text, now])
+  const tags = folder && !parsed.tags.includes(folder) ? [...parsed.tags, folder] : parsed.tags
+
+  // Підказки для слова з #, яке зараз пишеться в кінці рядка.
+  const typedTag = text.match(/#([^\s#]*)$/)?.[1]
+  const suggestions =
+    typedTag === undefined
+      ? []
+      : folders.filter((f) => f.name.startsWith(normalizeTag(typedTag)) && f.name !== normalizeTag(typedTag))
+
+  function completeTag(name: string) {
+    setText(text.replace(/#[^\s#]*$/, `#${name} `))
+    inputRef.current?.focus()
+  }
 
   const syncScroll = () => {
     if (mirrorRef.current && inputRef.current) mirrorRef.current.scrollLeft = inputRef.current.scrollLeft
@@ -36,7 +60,7 @@ export function QuickAdd({ now, onAdd }: { now: Date; onAdd: (parsed: ParsedLine
   function submit(event: FormEvent) {
     event.preventDefault()
     if (!parsed.title) return
-    onAdd(parsed)
+    onAdd({ ...parsed, tags })
     setText('')
   }
 
@@ -44,15 +68,31 @@ export function QuickAdd({ now, onAdd }: { now: Date; onAdd: (parsed: ParsedLine
 
   return (
     <form onSubmit={submit} className="px-3 pt-2">
-      <p className="h-6 truncate text-sm text-muted" aria-live="polite">
-        {hasText && (
-          <>
-            Буде {parsed.dueAt ? 'на ' : ''}
-            <span className="font-medium text-fg">{formatWhen(parsed.dueAt, parsed.hasTime, now)}</span>
-            {parsed.tags.length > 0 && ` ${parsed.tags.map((t) => `#${t}`).join(' ')}`}
-          </>
-        )}
-      </p>
+      {suggestions.length > 0 ? (
+        <div className="flex h-8 gap-1 overflow-x-auto pb-2" aria-label="Підказки тегів">
+          {suggestions.map((f) => (
+            <button
+              key={f.name}
+              type="button"
+              onClick={() => completeTag(f.name)}
+              className="flex h-6 shrink-0 items-center gap-1 rounded-full bg-surface px-2 text-sm"
+            >
+              <span className="size-2 rounded-full" style={{ backgroundColor: f.color }} />
+              {f.name}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="h-6 truncate text-sm text-muted" aria-live="polite">
+          {hasText && (
+            <>
+              Буде {parsed.dueAt ? 'на ' : ''}
+              <span className="font-medium text-fg">{formatWhen(parsed.dueAt, parsed.hasTime, now)}</span>
+              {tags.length > 0 && ` ${tags.map((t) => `#${t}`).join(' ')}`}
+            </>
+          )}
+        </p>
+      )}
       <div className="flex gap-2">
         <div className="relative min-w-0 flex-1 rounded-lg border-2 border-line bg-surface focus-within:border-accent">
           <div

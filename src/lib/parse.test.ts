@@ -72,6 +72,11 @@ describe('parseLine', () => {
     expect(p.dueAt).toBeNull()
   })
 
+  it('однаково читає тег у різному регістрі', () => {
+    const p = parseLine('хліб #Купити #купити', ref)
+    expect(p.tags).toEqual(['купити'])
+  })
+
   it('позначає діапазони для підсвітки', () => {
     const line = 'кава завтра #дім'
     const p = parseLine(line, ref)

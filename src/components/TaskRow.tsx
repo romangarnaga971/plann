@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import type { Task } from '../lib/store'
+import { defaultColor, normalizeTag, type Folder } from '../lib/tags'
 import { formatShortDate, formatTime } from '../lib/views'
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -9,11 +10,13 @@ const fieldClass = 'mt-1 h-11 w-full min-w-0 rounded-lg border border-line bg-su
 
 function EditForm({
   task,
+  folders,
   onSave,
   onDelete,
   onCancel,
 }: {
   task: Task
+  folders: Folder[]
   onSave: (task: Task) => void
   onDelete: () => void
   onCancel: () => void
@@ -23,6 +26,14 @@ function EditForm({
   const [date, setDate] = useState(due ? toDateInput(due) : '')
   const [time, setTime] = useState(due && task.has_time ? formatTime(due) : '')
   const [tags, setTags] = useState(task.tags.map((t) => `#${t}`).join(' '))
+
+  const parseTags = (value: string) => value.split(/[\s,]+/).map(normalizeTag).filter(Boolean)
+  const current = parseTags(tags)
+
+  function toggleTag(name: string) {
+    const next = current.includes(name) ? current.filter((t) => t !== name) : [...current, name]
+    setTags(next.map((t) => `#${t}`).join(' '))
+  }
 
   function submit(event: FormEvent) {
     event.preventDefault()
@@ -35,7 +46,7 @@ function EditForm({
       title: trimmed,
       due_at: day ? new Date(`${day}T${time || '12:00'}`).toISOString() : null,
       has_time: !!(day && time),
-      tags: tags.split(/[\s,]+/).map((t) => t.replace(/^#/, '')).filter(Boolean),
+      tags: [...new Set(parseTags(tags))],
     })
   }
 
@@ -59,6 +70,25 @@ function EditForm({
         Теги
         <input className={fieldClass} value={tags} onChange={(e) => setTags(e.target.value)} />
       </label>
+      {folders.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {folders.map((f) => {
+            const active = current.includes(f.name)
+            return (
+              <button
+                key={f.name}
+                type="button"
+                aria-pressed={active}
+                onClick={() => toggleTag(f.name)}
+                className={`flex h-9 items-center gap-1.5 rounded-full border px-3 text-sm ${active ? 'border-fg text-fg' : 'border-line text-muted'}`}
+              >
+                <span className="size-2.5 rounded-full" style={{ backgroundColor: f.color }} />
+                {f.name}
+              </button>
+            )
+          })}
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
         <button className="h-11 rounded-lg bg-accent px-4 font-semibold text-white">Зберегти</button>
         <button type="button" className="h-11 px-3 font-medium text-muted" onClick={onCancel}>
@@ -75,13 +105,19 @@ function EditForm({
 export function TaskRow({
   task,
   overdue,
+  showDate,
+  folders,
   onToggle,
+  onArchive,
   onSave,
   onDelete,
 }: {
   task: Task
   overdue: boolean
+  showDate?: boolean
+  folders: Folder[]
   onToggle: () => void
+  onArchive: () => void
   onSave: (task: Task) => void
   onDelete: () => void
 }) {
@@ -92,6 +128,7 @@ export function TaskRow({
       <li>
         <EditForm
           task={task}
+          folders={folders}
           onCancel={() => setEditing(false)}
           onDelete={onDelete}
           onSave={(next) => {
@@ -104,7 +141,8 @@ export function TaskRow({
   }
 
   const due = task.due_at ? new Date(task.due_at) : null
-  const whenText = !due ? '' : overdue ? formatShortDate(due) : task.has_time ? formatTime(due) : ''
+  const time = due && task.has_time ? formatTime(due) : ''
+  const whenText = !due ? '' : overdue ? formatShortDate(due) : showDate ? `${formatShortDate(due)} ${time}`.trim() : time
 
   return (
     <li className="flex items-start border-b border-line">
@@ -134,15 +172,26 @@ export function TaskRow({
           {task.title}
         </span>
         {task.tags.length > 0 && (
-          <span className="ml-2 text-sm text-accent-bright">{task.tags.map((t) => `#${t}`).join(' ')}</span>
+          <span className="ml-2 inline-flex flex-wrap gap-x-2 align-baseline text-sm">
+            {task.tags.map((t) => (
+              <span key={t} style={{ color: folders.find((f) => f.name === t)?.color ?? defaultColor(t) }}>
+                #{t}
+              </span>
+            ))}
+          </span>
         )}
       </button>
       {whenText && (
         <span
-          className={`shrink-0 pt-3 pr-4 text-sm tabular-nums ${overdue ? 'font-medium text-danger' : 'text-muted'}`}
+          className={`shrink-0 pt-3 ${task.done ? 'pr-2' : 'pr-4'} text-sm tabular-nums ${overdue ? 'font-medium text-danger' : 'text-muted'}`}
         >
           {whenText}
         </span>
+      )}
+      {task.done && (
+        <button onClick={onArchive} className="h-12 shrink-0 pr-4 text-sm font-medium text-accent-bright">
+          В архів
+        </button>
       )}
     </li>
   )
