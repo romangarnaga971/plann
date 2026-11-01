@@ -15,6 +15,11 @@ export const PALETTE = [
 export const normalizeTag = (value: string) =>
   value.trim().replace(/^#+/, '').replace(/[’ʼ`]/g, "'").toLowerCase()
 
+// Лишає тільки символи, які розпізнає рядок швидкого додавання.
+export const sanitizeTag = (value: string) => value.replace(/[’ʼ`]/g, "'").replace(/[^\p{L}\p{N}_'-]/gu, '')
+
+export const isValidTag = (value: string) => value.length > 0 && sanitizeTag(value) === value
+
 // Тег без вибраного кольору завжди отримує той самий колір за назвою.
 export function defaultColor(name: string): string {
   let hash = 0

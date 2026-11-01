@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { normalizeTag, PALETTE, type Folder } from '../lib/tags'
+import { isValidTag, normalizeTag, PALETTE, type Folder } from '../lib/tags'
 
 function FolderForm({
   folder,
@@ -21,8 +21,8 @@ function FolderForm({
   function submit(event: FormEvent) {
     event.preventDefault()
     const next = normalizeTag(name)
-    if (!next || /\s/.test(next)) {
-      setError('Назва має бути одним словом.')
+    if (!isValidTag(next)) {
+      setError('Назва має бути одним словом: літери, цифри, дефіс або _.')
       return
     }
     if (next !== folder?.name && taken.includes(next)) {
