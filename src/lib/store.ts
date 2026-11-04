@@ -9,6 +9,7 @@ export interface Task {
   done: boolean
   done_at: string | null
   archived_at: string | null
+  pinned: boolean
   created_at: string
 }
 
@@ -32,7 +33,7 @@ const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 
 export const supabase: SupabaseClient | null = url && key ? createClient(url, key) : null
 
-const COLUMNS = 'id,title,due_at,has_time,tags,done,done_at,archived_at,created_at'
+const COLUMNS = 'id,title,due_at,has_time,tags,done,done_at,archived_at,pinned,created_at'
 
 export const supabaseStore = (client: SupabaseClient): TaskStore => ({
   async list() {

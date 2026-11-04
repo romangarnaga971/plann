@@ -13,6 +13,7 @@ const task = (over: Partial<Task>): Task => ({
   done: false,
   done_at: null,
   archived_at: null,
+  pinned: false,
   created_at: now.toISOString(),
   ...over,
 })
@@ -44,6 +45,18 @@ describe('прострочені', () => {
       task({ title: 'незроблена', due_at: past }),
     ], now)
     expect(groups[0].tasks.map((t) => t.title)).toEqual(['незроблена', 'зроблена'])
+  })
+})
+
+describe('закріплені', () => {
+  it('стоять над іншими задачами дня, але над зробленими не переважають', () => {
+    const due = (h: number) => new Date(2026, 10, 5, h).toISOString()
+    const groups = groupsFor('today', [
+      task({ title: 'рання', due_at: due(9), has_time: true }),
+      task({ title: 'закріплена', due_at: due(20), has_time: true, pinned: true }),
+      task({ title: 'зроблена', due_at: due(8), has_time: true, pinned: true, done: true }),
+    ], now)
+    expect(groups[0].tasks.map((t) => t.title)).toEqual(['закріплена', 'рання', 'зроблена'])
   })
 })
 

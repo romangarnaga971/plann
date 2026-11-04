@@ -104,6 +104,7 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
       done: false,
       done_at: null,
       archived_at: null,
+      pinned: false,
       created_at: new Date().toISOString(),
     })
     showToast({ text: `Додано: ${formatWhen(parsed.dueAt, parsed.hasTime, new Date())}` })
@@ -304,6 +305,7 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
                       folders={tagFolders}
                       onToggle={() => toggleTask(task)}
                       onArchive={() => archiveTask(task)}
+                      onPin={() => saveTask({ ...task, pinned: !task.pinned })}
                       onSave={saveTask}
                       onDelete={() => deleteTask(task)}
                     />

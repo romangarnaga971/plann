@@ -125,6 +125,7 @@ export function TaskRow({
   folders,
   onToggle,
   onArchive,
+  onPin,
   onSave,
   onDelete,
 }: {
@@ -134,6 +135,7 @@ export function TaskRow({
   folders: Folder[]
   onToggle: () => void
   onArchive: () => void
+  onPin: () => void
   onSave: (task: Task) => void
   onDelete: () => void
 }) {
@@ -199,10 +201,33 @@ export function TaskRow({
       </button>
       {whenText && (
         <span
-          className={`shrink-0 pt-3 ${task.done ? 'pr-2' : 'pr-4'} text-sm tabular-nums ${overdue && !task.done ? 'font-medium text-danger' : 'text-muted'}`}
+          className={`shrink-0 pt-3 pr-2 text-sm tabular-nums ${overdue && !task.done ? 'font-medium text-danger' : 'text-muted'}`}
         >
           {whenText}
         </span>
+      )}
+      {!task.done && (
+        <button
+          type="button"
+          onClick={onPin}
+          aria-pressed={task.pinned}
+          aria-label={task.pinned ? `Відкріпити: ${task.title}` : `Закріпити: ${task.title}`}
+          className={`mr-1 grid size-12 shrink-0 place-items-center ${task.pinned ? 'text-accent-bright' : 'text-muted'}`}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            className="size-5"
+            fill={task.pinned ? 'currentColor' : 'none'}
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            aria-hidden
+          >
+            <path d="M9 3h6l-1 7 4 4H6l4-4-1-7z" />
+            <path d="M12 14v7" />
+          </svg>
+        </button>
       )}
       {task.done && (
         <button onClick={onArchive} className="h-12 shrink-0 pr-4 text-sm font-medium text-accent-bright">

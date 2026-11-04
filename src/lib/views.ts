@@ -60,6 +60,7 @@ export function viewSubtitle(view: View, now: Date): string | null {
 
 function byOrder(a: Task, b: Task) {
   if (a.done !== b.done) return a.done ? 1 : -1
+  if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1
   // Задачі на цілий день ідуть перед задачами з часом.
   if (a.has_time !== b.has_time) return a.has_time ? 1 : -1
   if (a.has_time && a.due_at && b.due_at && a.due_at !== b.due_at) return a.due_at < b.due_at ? -1 : 1
@@ -75,6 +76,7 @@ const overdueGroup = (tasks: Task[], now: Date): Group[] => {
     .filter((t) => isPast(t, now))
     .sort((a, b) => {
       if (a.done !== b.done) return a.done ? 1 : -1
+      if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1
       return a.due_at! < b.due_at! ? -1 : 1
     })
   return overdue.length ? [{ key: 'overdue', label: 'Прострочені', overdue: true, tasks: overdue, moveTo: 0 }] : []
@@ -114,6 +116,7 @@ export function folderGroups(tag: string, tasks: Task[]): Group[] {
   const active = list
     .filter((t) => !t.done)
     .sort((a, b) => {
+      if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1
       if (!a.due_at || !b.due_at) return a.due_at ? -1 : b.due_at ? 1 : a.created_at < b.created_at ? -1 : 1
       return a.due_at < b.due_at ? -1 : 1
     })
