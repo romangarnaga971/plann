@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Task } from '../lib/store'
-import { defaultColor, type Folder } from '../lib/tags'
+import { defaultColor, tagTextColor, type Folder } from '../lib/tags'
 import { formatShortDate } from '../lib/views'
 
 export function ArchiveList({
@@ -33,7 +33,7 @@ export function ArchiveList({
                 setConfirming(false)
                 onClear()
               }}
-              className="h-11 rounded-lg bg-danger px-4 font-semibold text-black"
+              className="h-11 rounded-lg bg-danger px-4 font-semibold text-bg"
             >
               Видалити назавжди
             </button>
@@ -56,7 +56,7 @@ export function ArchiveList({
                 <span
                   key={t}
                   className="ml-2 text-sm"
-                  style={{ color: folders.find((f) => f.name === t)?.color ?? defaultColor(t) }}
+                  style={{ color: tagTextColor(folders.find((f) => f.name === t)?.color ?? defaultColor(t)) }}
                 >
                   #{t}
                 </span>

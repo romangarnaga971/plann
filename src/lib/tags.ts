@@ -27,20 +27,34 @@ export function defaultColor(name: string): string {
   return PALETTE[Math.abs(hash) % PALETTE.length]
 }
 
+// Назва з пробілом не може збігтися зі справжнім тегом, бо тег завжди одне слово.
+export const NO_TAG = 'без тегу'
+
+// Колір тегу, читабельний на світлому й темному тлі.
+export const tagTextColor = (color: string) => `color-mix(in srgb, ${color} 50%, var(--color-fg))`
+
 export interface Folder {
   name: string
   color: string
   count: number
+  system?: boolean
 }
 
 export function buildFolders(tags: Tag[], tasks: Task[]): Folder[] {
   const colors = new Map(tags.map((tag) => [tag.name, tag.color]))
   const names = new Set([...colors.keys(), ...tasks.flatMap((task) => task.tags)])
-  return [...names]
+  const custom = [...names]
     .map((name) => ({
       name,
       color: colors.get(name) ?? defaultColor(name),
       count: tasks.filter((task) => !task.done && task.tags.includes(name)).length,
     }))
     .sort((a, b) => a.name.localeCompare(b.name, 'uk'))
+  const untagged: Folder = {
+    name: NO_TAG,
+    color: PALETTE[8],
+    count: tasks.filter((task) => !task.done && task.tags.length === 0).length,
+    system: true,
+  }
+  return [untagged, ...custom]
 }

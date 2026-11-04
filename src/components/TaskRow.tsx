@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import type { Task } from '../lib/store'
-import { defaultColor, normalizeTag, type Folder } from '../lib/tags'
-import { formatShortDate, formatTime } from '../lib/views'
+import { defaultColor, normalizeTag, tagTextColor, type Folder } from '../lib/tags'
+import { addDays, formatShortDate, formatTime } from '../lib/views'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const toDateInput = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
@@ -65,6 +65,22 @@ function EditForm({
           Час
           <input type="time" className={fieldClass} value={time} onChange={(e) => setTime(e.target.value)} />
         </label>
+      </div>
+      <div className="-mt-1 flex gap-2">
+        <button
+          type="button"
+          className="h-9 rounded-full border border-line px-3 text-sm font-medium"
+          onClick={() => setDate(toDateInput(new Date()))}
+        >
+          На сьогодні
+        </button>
+        <button
+          type="button"
+          className="h-9 rounded-full border border-line px-3 text-sm font-medium"
+          onClick={() => setDate(toDateInput(addDays(new Date(), 1)))}
+        >
+          На завтра
+        </button>
       </div>
       <label className="block text-sm font-medium">
         Теги
@@ -174,7 +190,7 @@ export function TaskRow({
         {task.tags.length > 0 && (
           <span className="ml-2 inline-flex flex-wrap gap-x-2 align-baseline text-sm">
             {task.tags.map((t) => (
-              <span key={t} style={{ color: folders.find((f) => f.name === t)?.color ?? defaultColor(t) }}>
+              <span key={t} style={{ color: tagTextColor(folders.find((f) => f.name === t)?.color ?? defaultColor(t)) }}>
                 #{t}
               </span>
             ))}
@@ -183,7 +199,7 @@ export function TaskRow({
       </button>
       {whenText && (
         <span
-          className={`shrink-0 pt-3 ${task.done ? 'pr-2' : 'pr-4'} text-sm tabular-nums ${overdue ? 'font-medium text-danger' : 'text-muted'}`}
+          className={`shrink-0 pt-3 ${task.done ? 'pr-2' : 'pr-4'} text-sm tabular-nums ${overdue && !task.done ? 'font-medium text-danger' : 'text-muted'}`}
         >
           {whenText}
         </span>

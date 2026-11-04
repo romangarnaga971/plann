@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ParsedLine } from '../lib/parse'
 import type { Tag, Task, TaskStore } from '../lib/store'
 import { buildFolders } from '../lib/tags'
-import { countFor, folderGroups, formatWhen, groupsFor, viewSubtitle, VIEWS, type View } from '../lib/views'
+import { useSwipe } from '../lib/useSwipe'
+import { countFor, folderGroups, formatWhen, groupsFor, moveToDay, viewSubtitle, VIEWS, type View } from '../lib/views'
 import { ArchiveList } from './ArchiveList'
 import { FolderCabinet } from './FolderCabinet'
 import { QuickAdd } from './QuickAdd'
@@ -30,6 +31,21 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
   const [now, setNow] = useState(() => new Date())
   const [toast, setToast] = useState<Toast | null>(null)
   const toastTimer = useRef<number | undefined>(undefined)
+  const mainRef = useRef<HTMLElement>(null)
+
+  useSwipe(mainRef, (direction) => {
+    const index = VIEWS.findIndex((v) => v.id === view)
+    const next = VIEWS[index + direction]
+    if (!folder && !archiveOpen && next) {
+      setView(next.id)
+      return true
+    }
+    // Свайп вправо з першого вигляду, папки чи архіву відкриває шафку на телефоні.
+    if (direction === -1 && (folder || archiveOpen || index === 0) && matchMedia('(max-width: 767px)').matches) {
+      setMenuOpen(true)
+    }
+    return false
+  })
 
   const showToast = useCallback((next: Toast) => {
     window.clearTimeout(toastTimer.current)
@@ -110,6 +126,17 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
     })
   }
 
+  function moveTasks(moving: Task[], offset: number) {
+    for (const task of moving) saveTask({ ...task, due_at: moveToDay(task.due_at!, offset, new Date()) })
+    showToast({
+      text: `Перенесено на ${offset === 0 ? 'сьогодні' : 'завтра'}: ${moving.length}`,
+      undo: () => {
+        setToast(null)
+        for (const task of moving) saveTask(task)
+      },
+    })
+  }
+
   function archiveTask(task: Task) {
     saveTask({ ...task, archived_at: new Date().toISOString() })
     showToast({
@@ -161,6 +188,7 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
   const active = list.filter((t) => !t.archived_at)
   const archived = list.filter((t) => t.archived_at)
   const folders = buildFolders(tags, list)
+  const tagFolders = folders.filter((f) => !f.system)
   const openFolder = folder && !archiveOpen ? folders.find((f) => f.name === folder) ?? null : null
   const groups = archiveOpen
     ? []
@@ -199,7 +227,7 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
         onSave={saveFolder}
         onDelete={deleteFolder}
       />
-      <main className="mx-auto max-w-2xl pb-52">
+      <main ref={mainRef} className="mx-auto min-h-dvh max-w-2xl touch-pan-y pb-52">
         <header className="flex items-start gap-1 px-4 pt-6">
           <button
             onClick={() => setMenuOpen(true)}
@@ -229,7 +257,11 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
 
         <div className="mt-6">
           {tasks === null && <p className="px-4 text-muted">Завантажую задачі…</p>}
-          {isEmpty && <p className="px-4 text-muted">{openFolder ? 'У цій папці порожньо. Напишіть задачу внизу, і вона потрапить сюди.' : EMPTY[view]}</p>}
+          {isEmpty && <p className="px-4 text-muted">{openFolder?.system
+                ? 'Задачі без тегів з’являться тут.'
+                : openFolder
+                  ? 'У цій папці порожньо. Напишіть задачу внизу, і вона потрапить сюди.'
+                  : EMPTY[view]}</p>}
           {tasks !== null && archiveOpen && (
             <ArchiveList
               tasks={archived}
@@ -239,14 +271,28 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
             />
           )}
           {tasks !== null &&
-            groups.map((group) => (
+            groups.map((group) => {
+              const movable = group.moveTo === undefined ? [] : group.tasks.filter((t) => !t.done)
+              return (
               <section key={group.key} className="mb-6">
-                {group.label && (
-                  <h2
-                    className={`px-4 pb-1 text-sm font-semibold first-letter:uppercase ${group.overdue ? 'text-danger' : 'text-muted'}`}
-                  >
-                    {group.label}
-                  </h2>
+                {(group.label || movable.length > 0) && (
+                  <div className="flex min-h-9 items-center justify-between gap-2 px-4 pb-1">
+                    {group.label && (
+                      <h2
+                        className={`text-sm font-semibold first-letter:uppercase ${group.overdue ? 'text-danger' : 'text-muted'}`}
+                      >
+                        {group.label}
+                      </h2>
+                    )}
+                    {movable.length > 0 && (
+                      <button
+                        onClick={() => moveTasks(movable, group.moveTo!)}
+                        className="ml-auto h-9 shrink-0 text-sm font-medium text-accent-bright"
+                      >
+                        {group.moveTo === 0 ? 'Усі на сьогодні' : 'Усі на завтра'}
+                      </button>
+                    )}
+                  </div>
                 )}
                 <ul>
                   {group.tasks.map((task) => (
@@ -255,7 +301,7 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
                       task={task}
                       overdue={group.overdue}
                       showDate={openFolder !== null}
-                      folders={folders}
+                      folders={tagFolders}
                       onToggle={() => toggleTask(task)}
                       onArchive={() => archiveTask(task)}
                       onSave={saveTask}
@@ -264,7 +310,8 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
                   ))}
                 </ul>
               </section>
-            ))}
+              )
+            })}
         </div>
       </main>
 
@@ -283,7 +330,12 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
             )}
           </div>
           <div className="border-t border-line bg-bg pb-[env(safe-area-inset-bottom)]">
-            <QuickAdd now={now} folders={folders} folder={openFolder?.name ?? null} onAdd={addTask} />
+            <QuickAdd
+              now={now}
+              folders={tagFolders}
+              folder={openFolder && !openFolder.system ? openFolder.name : null}
+              onAdd={addTask}
+            />
             <nav aria-label="Вигляди" className="mt-1 grid grid-cols-4">
               {VIEWS.map((v) => {
                 const count = countFor(v.id, active, now)

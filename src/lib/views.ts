@@ -1,4 +1,5 @@
 import type { Task } from './store'
+import { NO_TAG } from './tags'
 
 export type View = 'today' | 'tomorrow' | 'week' | 'nodate'
 
@@ -14,6 +15,8 @@ export interface Group {
   label: string | null
   overdue: boolean
   tasks: Task[]
+  // На скільки днів від сьогодні група переноситься кнопкою.
+  moveTo?: number
 }
 
 export const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
@@ -25,6 +28,14 @@ const dayDiff = (a: Date, b: Date) =>
 const fmtDay = new Intl.DateTimeFormat('uk-UA', { day: 'numeric', month: 'long' })
 const fmtWeekday = new Intl.DateTimeFormat('uk-UA', { weekday: 'long' })
 const fmtShort = new Intl.DateTimeFormat('uk-UA', { day: '2-digit', month: '2-digit' })
+
+// Нова дата за зміщенням від сьогодні, час задачі лишається той самий.
+export function moveToDay(dueAt: string, offset: number, now: Date): string {
+  const due = new Date(dueAt)
+  const day = addDays(now, offset)
+  day.setHours(due.getHours(), due.getMinutes(), 0, 0)
+  return day.toISOString()
+}
 
 export const formatTime = (d: Date) =>
   `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
@@ -55,14 +66,18 @@ function byOrder(a: Task, b: Task) {
   return a.created_at < b.created_at ? -1 : 1
 }
 
-const isOverdue = (t: Task, now: Date) => !t.done && !!t.due_at && dayDiff(new Date(t.due_at), now) < 0
+const isPast = (t: Task, now: Date) => !!t.due_at && dayDiff(new Date(t.due_at), now) < 0
 const onDay = (t: Task, day: Date) => !!t.due_at && dayDiff(new Date(t.due_at), day) === 0
 
+// Зроблені задачі лишаються в групі внизу, поки їх не перенесуть в архів.
 const overdueGroup = (tasks: Task[], now: Date): Group[] => {
   const overdue = tasks
-    .filter((t) => isOverdue(t, now))
-    .sort((a, b) => (a.due_at! < b.due_at! ? -1 : 1))
-  return overdue.length ? [{ key: 'overdue', label: 'Прострочені', overdue: true, tasks: overdue }] : []
+    .filter((t) => isPast(t, now))
+    .sort((a, b) => {
+      if (a.done !== b.done) return a.done ? 1 : -1
+      return a.due_at! < b.due_at! ? -1 : 1
+    })
+  return overdue.length ? [{ key: 'overdue', label: 'Прострочені', overdue: true, tasks: overdue, moveTo: 0 }] : []
 }
 
 export function groupsFor(view: View, tasks: Task[], now: Date): Group[] {
@@ -78,7 +93,7 @@ export function groupsFor(view: View, tasks: Task[], now: Date): Group[] {
     const overdue = overdueGroup(tasks, now)
     const list = tasks.filter((t) => onDay(t, now)).sort(byOrder)
     if (!list.length) return overdue
-    return [...overdue, { key: 'today', label: overdue.length ? 'Сьогодні' : null, overdue: false, tasks: list }]
+    return [...overdue, { key: 'today', label: overdue.length ? 'Сьогодні' : null, overdue: false, tasks: list, moveTo: 1 }]
   }
   const days = Array.from({ length: 7 }, (_, i) => addDays(now, i))
   return [
@@ -88,13 +103,14 @@ export function groupsFor(view: View, tasks: Task[], now: Date): Group[] {
       label: i === 0 ? 'Сьогодні' : i === 1 ? 'Завтра' : formatLongDate(day),
       overdue: false,
       tasks: tasks.filter((t) => onDay(t, day)).sort(byOrder),
+      moveTo: i === 0 ? 1 : undefined,
     })),
   ]
 }
 
 // Усі задачі папки: спершу незроблені за датою, задачі без дати в кінці.
 export function folderGroups(tag: string, tasks: Task[]): Group[] {
-  const list = tasks.filter((t) => t.tags.includes(tag))
+  const list = tasks.filter((t) => (tag === NO_TAG ? t.tags.length === 0 : t.tags.includes(tag)))
   const active = list
     .filter((t) => !t.done)
     .sort((a, b) => {

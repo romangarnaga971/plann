@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { ThemeToggle } from './ThemeToggle'
 import { isValidTag, normalizeTag, PALETTE, type Folder } from '../lib/tags'
 
 function FolderForm({
@@ -140,7 +141,7 @@ export function FolderCabinet({
           </button>
         </div>
 
-        {folders.length === 0 && editing === null && (
+        {folders.length === 1 && editing === null && (
           <p className="mt-3 text-sm text-muted">
             Створіть папку або додайте тег до задачі, наприклад, #купити.
           </p>
@@ -179,17 +180,19 @@ export function FolderCabinet({
                   <span className="min-w-0 truncate">{folder.name}</span>
                   {folder.count > 0 && <span className="ml-2 tabular-nums">{folder.count}</span>}
                 </button>
-                <button
-                  onClick={() => setEditing(folder.name)}
-                  aria-label={`Змінити папку ${folder.name}`}
-                  className="folder-edit"
-                >
-                  <svg viewBox="0 0 24 24" className="size-4" fill="currentColor" aria-hidden>
-                    <circle cx="5" cy="12" r="2" />
-                    <circle cx="12" cy="12" r="2" />
-                    <circle cx="19" cy="12" r="2" />
-                  </svg>
-                </button>
+                {!folder.system && (
+                  <button
+                    onClick={() => setEditing(folder.name)}
+                    aria-label={`Змінити папку ${folder.name}`}
+                    className="folder-edit"
+                  >
+                    <svg viewBox="0 0 24 24" className="size-4" fill="currentColor" aria-hidden>
+                      <circle cx="5" cy="12" r="2" />
+                      <circle cx="12" cy="12" r="2" />
+                      <circle cx="19" cy="12" r="2" />
+                    </svg>
+                  </button>
+                )}
               </li>
             ),
           )}
@@ -224,6 +227,7 @@ export function FolderCabinet({
           <span>Архів</span>
           {archiveCount > 0 && <span className="tabular-nums">{archiveCount}</span>}
         </button>
+        <ThemeToggle />
       </aside>
     </>
   )

@@ -55,7 +55,7 @@ export function TagPicker({
   }
 
   return (
-    <div className="absolute inset-x-3 bottom-full z-20 mb-2 overflow-hidden rounded-lg border border-line bg-surface shadow-lg shadow-black">
+    <div className="absolute inset-x-3 bottom-full z-20 mb-2 overflow-hidden rounded-lg border border-line bg-surface shadow-lg">
       <input
         autoFocus
         aria-label="Знайти або створити тег"

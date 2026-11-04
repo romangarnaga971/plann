@@ -17,6 +17,23 @@
   color-scheme: dark;
 }
 
+:root[data-theme='light'] {
+  color-scheme: light;
+  --color-bg: #ffffff;
+  --color-surface: #f2f4f8;
+  --color-line: #dde1e8;
+  --color-fg: #10131a;
+  --color-muted: #5b6472;
+  --color-accent-bright: #1d4ed8;
+  --color-danger: #c62828;
+}
+
+html,
+body {
+  overflow-x: clip;
+  overscroll-behavior-x: none;
+}
+
 body {
   margin: 0;
   min-height: 100dvh;

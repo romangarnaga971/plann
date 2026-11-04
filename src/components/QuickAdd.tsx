@@ -5,8 +5,8 @@ import { formatWhen } from '../lib/views'
 import { TagPicker } from './TagPicker'
 
 const MARK_CLASS: Record<Span['kind'], string> = {
-  date: 'bg-accent',
-  tag: 'bg-line',
+  date: 'bg-accent text-white',
+  tag: 'bg-line text-fg',
 }
 
 function highlight(text: string, spans: Span[]) {
@@ -15,7 +15,7 @@ function highlight(text: string, spans: Span[]) {
   for (const span of spans) {
     parts.push(text.slice(cursor, span.start))
     parts.push(
-      <mark key={span.start} className={`${MARK_CLASS[span.kind]} rounded-sm text-fg`}>
+      <mark key={span.start} className={`${MARK_CLASS[span.kind]} rounded-sm`}>
         {text.slice(span.start, span.end)}
       </mark>,
     )
