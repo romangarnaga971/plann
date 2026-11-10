@@ -122,6 +122,7 @@ export function TaskRow({
   task,
   overdue,
   showDate,
+  draggable,
   folders,
   onToggle,
   onArchive,
@@ -132,6 +133,7 @@ export function TaskRow({
   task: Task
   overdue: boolean
   showDate?: boolean
+  draggable?: boolean
   folders: Folder[]
   onToggle: () => void
   onArchive: () => void
@@ -163,7 +165,14 @@ export function TaskRow({
   const whenText = !due ? '' : overdue ? formatShortDate(due) : showDate ? `${formatShortDate(due)} ${time}`.trim() : time
 
   return (
-    <li className="flex items-start border-b border-line">
+    <li
+      className="flex items-start border-b border-line"
+      draggable={draggable}
+      onDragStart={(event) => {
+        event.dataTransfer.setData('text/x-task', task.id)
+        event.dataTransfer.effectAllowed = 'move'
+      }}
+    >
       <button
         type="button"
         role="checkbox"

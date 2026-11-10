@@ -94,6 +94,8 @@ export function FolderCabinet({
   archiveCount,
   archiveOpen,
   onOpenArchive,
+  calendarOpen,
+  onOpenCalendar,
 }: {
   folders: Folder[]
   selected: string | null
@@ -101,6 +103,8 @@ export function FolderCabinet({
   archiveCount: number
   archiveOpen: boolean
   onOpenArchive: () => void
+  calendarOpen: boolean
+  onOpenCalendar: () => void
   onClose: () => void
   onSelect: (name: string) => void
   onSave: (previous: string | null, name: string, color: string) => void
@@ -140,6 +144,18 @@ export function FolderCabinet({
             </svg>
           </button>
         </div>
+
+        <button
+          onClick={onOpenCalendar}
+          aria-current={calendarOpen ? 'page' : undefined}
+          className={`mt-4 flex h-11 w-full shrink-0 items-center gap-3 rounded-lg px-3 font-medium ${calendarOpen ? 'bg-surface text-accent-bright' : 'text-fg'}`}
+        >
+          <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+            <rect x="3.5" y="5" width="17" height="15" rx="2" />
+            <path d="M3.5 10h17M8 3v4M16 3v4" />
+          </svg>
+          Календар
+        </button>
 
         {folders.length === 1 && editing === null && (
           <p className="mt-3 text-sm text-muted">

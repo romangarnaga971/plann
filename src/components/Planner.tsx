@@ -3,8 +3,21 @@ import type { ParsedLine } from '../lib/parse'
 import type { Tag, Task, TaskStore } from '../lib/store'
 import { buildFolders } from '../lib/tags'
 import { useSwipe } from '../lib/useSwipe'
-import { countFor, folderGroups, formatWhen, groupsFor, moveToDay, viewSubtitle, VIEWS, type View } from '../lib/views'
+import {
+  countFor,
+  folderGroups,
+  formatWhen,
+  groupsFor,
+  isSameDay,
+  moveToDay,
+  onDayKeepingTime,
+  startOfDay,
+  viewSubtitle,
+  VIEWS,
+  type View,
+} from '../lib/views'
 import { ArchiveList } from './ArchiveList'
+import { CalendarView } from './CalendarView'
 import { FolderCabinet } from './FolderCabinet'
 import { QuickAdd } from './QuickAdd'
 import { TaskRow } from './TaskRow'
@@ -27,13 +40,38 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
   const [view, setView] = useState<View>('today')
   const [folder, setFolder] = useState<string | null>(null)
   const [archiveOpen, setArchiveOpen] = useState(false)
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const [calendarDay, setCalendarDay] = useState(() => startOfDay(new Date()))
+  const [calendarMonth, setCalendarMonth] = useState(() => startOfDay(new Date()))
   const [menuOpen, setMenuOpen] = useState(false)
   const [now, setNow] = useState(() => new Date())
   const [toast, setToast] = useState<Toast | null>(null)
   const toastTimer = useRef<number | undefined>(undefined)
   const mainRef = useRef<HTMLElement>(null)
 
+  function selectCalendarDay(day: Date) {
+    setCalendarDay(startOfDay(day))
+    setCalendarMonth(new Date(day.getFullYear(), day.getMonth(), 1))
+  }
+
+  function shiftCalendarMonth(delta: number) {
+    setCalendarMonth((current) => new Date(current.getFullYear(), current.getMonth() + delta, 1))
+  }
+
+  // Відкриває один екран і закриває інші: вигляд, папку, архів або календар.
+  function openScreen(screen: { view?: View; folder?: string; archive?: boolean; calendar?: boolean }) {
+    if (screen.view) setView(screen.view)
+    setFolder(screen.folder ?? null)
+    setArchiveOpen(!!screen.archive)
+    setCalendarOpen(!!screen.calendar)
+    setMenuOpen(false)
+  }
+
   useSwipe(mainRef, (direction) => {
+    if (calendarOpen) {
+      shiftCalendarMonth(direction)
+      return true
+    }
     const index = VIEWS.findIndex((v) => v.id === view)
     const next = VIEWS[index + direction]
     if (!folder && !archiveOpen && next) {
@@ -138,6 +176,20 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
     })
   }
 
+  function moveTaskToDay(id: string, day: Date) {
+    const task = list.find((t) => t.id === id)
+    if (!task || (task.due_at && isSameDay(new Date(task.due_at), day))) return
+    const dueAt = onDayKeepingTime(task.due_at, day)
+    saveTask({ ...task, due_at: dueAt })
+    showToast({
+      text: `Перенесено: ${formatWhen(new Date(dueAt), task.has_time, new Date())}`,
+      undo: () => {
+        setToast(null)
+        saveTask(task)
+      },
+    })
+  }
+
   function archiveTask(task: Task) {
     saveTask({ ...task, archived_at: new Date().toISOString() })
     showToast({
@@ -190,21 +242,23 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
   const archived = list.filter((t) => t.archived_at)
   const folders = buildFolders(tags, list)
   const tagFolders = folders.filter((f) => !f.system)
-  const openFolder = folder && !archiveOpen ? folders.find((f) => f.name === folder) ?? null : null
-  const groups = archiveOpen
+  const openFolder = folder && !archiveOpen && !calendarOpen ? folders.find((f) => f.name === folder) ?? null : null
+  const groups = archiveOpen || calendarOpen
     ? []
     : openFolder
       ? folderGroups(openFolder.name, active)
       : groupsFor(view, active, now)
   const current = VIEWS.find((v) => v.id === view)!
-  const subtitle = archiveOpen
+  const subtitle = calendarOpen
+    ? ''
+    : archiveOpen
     ? `Задач: ${archived.length}`
     : openFolder
     ? openFolder.count > 0
       ? `Незроблених: ${openFolder.count}`
       : 'Усе зроблено'
     : viewSubtitle(view, now)
-  const isEmpty = tasks !== null && !archiveOpen && (openFolder !== null || view !== 'week') && groups.length === 0
+  const isEmpty = tasks !== null && !archiveOpen && !calendarOpen && (openFolder !== null || view !== 'week') && groups.length === 0
 
   return (
     <div className="md:pl-72">
@@ -215,16 +269,10 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
         onClose={() => setMenuOpen(false)}
         archiveCount={archived.length}
         archiveOpen={archiveOpen}
-        onOpenArchive={() => {
-          setArchiveOpen(true)
-          setFolder(null)
-          setMenuOpen(false)
-        }}
-        onSelect={(name) => {
-          setFolder(name)
-          setArchiveOpen(false)
-          setMenuOpen(false)
-        }}
+        calendarOpen={calendarOpen}
+        onOpenCalendar={() => openScreen({ calendar: true })}
+        onOpenArchive={() => openScreen({ archive: true })}
+        onSelect={(name) => openScreen({ folder: name })}
         onSave={saveFolder}
         onDelete={deleteFolder}
       />
@@ -245,7 +293,7 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
               {openFolder && (
                 <span className="size-4 shrink-0 rounded-full" style={{ backgroundColor: openFolder.color }} />
               )}
-              <span className="truncate">{archiveOpen ? 'Архів' : openFolder ? openFolder.name : current.label}</span>
+              <span className="truncate">{calendarOpen ? 'Календар' : archiveOpen ? 'Архів' : openFolder ? openFolder.name : current.label}</span>
             </h1>
             <p className="h-6 text-muted first-letter:uppercase">{subtitle}</p>
           </div>
@@ -263,6 +311,32 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
                 : openFolder
                   ? 'У цій папці порожньо. Напишіть задачу внизу, і вона потрапить сюди.'
                   : EMPTY[view]}</p>}
+          {tasks !== null && calendarOpen && (
+            <CalendarView
+              month={calendarMonth}
+              selected={calendarDay}
+              now={now}
+              tasks={active}
+              folders={tagFolders}
+              onMonth={shiftCalendarMonth}
+              onSelect={selectCalendarDay}
+              onDropTask={moveTaskToDay}
+              renderTask={(task) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  overdue={false}
+                  draggable
+                  folders={tagFolders}
+                  onToggle={() => toggleTask(task)}
+                  onArchive={() => archiveTask(task)}
+                  onPin={() => saveTask({ ...task, pinned: !task.pinned })}
+                  onSave={saveTask}
+                  onDelete={() => deleteTask(task)}
+                />
+              )}
+            />
+          )}
           {tasks !== null && archiveOpen && (
             <ArchiveList
               tasks={archived}
@@ -336,21 +410,18 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
               now={now}
               folders={tagFolders}
               folder={openFolder && !openFolder.system ? openFolder.name : null}
+              defaultDay={calendarOpen ? calendarDay : null}
               onAdd={addTask}
             />
             <nav aria-label="Вигляди" className="mt-1 grid grid-cols-4">
               {VIEWS.map((v) => {
                 const count = countFor(v.id, active, now)
-                const isCurrent = !openFolder && !archiveOpen && v.id === view
+                const isCurrent = !openFolder && !archiveOpen && !calendarOpen && v.id === view
                 return (
                   <button
                     key={v.id}
                     aria-current={isCurrent ? 'page' : undefined}
-                    onClick={() => {
-                      setView(v.id)
-                      setFolder(null)
-                      setArchiveOpen(false)
-                    }}
+                    onClick={() => openScreen({ view: v.id })}
                     className={`h-12 border-b-2 text-sm ${isCurrent ? 'border-accent font-semibold text-accent-bright' : 'border-transparent text-muted'}`}
                   >
                     {v.label}

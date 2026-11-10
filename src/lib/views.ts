@@ -29,13 +29,34 @@ const fmtDay = new Intl.DateTimeFormat('uk-UA', { day: 'numeric', month: 'long' 
 const fmtWeekday = new Intl.DateTimeFormat('uk-UA', { weekday: 'long' })
 const fmtShort = new Intl.DateTimeFormat('uk-UA', { day: '2-digit', month: '2-digit' })
 
-// Нова дата за зміщенням від сьогодні, час задачі лишається той самий.
-export function moveToDay(dueAt: string, offset: number, now: Date): string {
-  const due = new Date(dueAt)
-  const day = addDays(now, offset)
-  day.setHours(due.getHours(), due.getMinutes(), 0, 0)
-  return day.toISOString()
+// Дата на вказаний день із тим самим часом задачі; задача без дати стає на цілий день.
+export function onDayKeepingTime(dueAt: string | null, day: Date): string {
+  const next = startOfDay(day)
+  if (dueAt) {
+    const due = new Date(dueAt)
+    next.setHours(due.getHours(), due.getMinutes(), 0, 0)
+  } else {
+    next.setHours(12, 0, 0, 0)
+  }
+  return next.toISOString()
 }
+
+// Нова дата за зміщенням від сьогодні, час задачі лишається той самий.
+export const moveToDay = (dueAt: string, offset: number, now: Date) => onDayKeepingTime(dueAt, addDays(now, offset))
+
+export const isSameDay = (a: Date, b: Date) => dayDiff(a, b) === 0
+
+// Дні сітки місяця від понеділка першого тижня до неділі останнього.
+export function monthGrid(month: Date): Date[] {
+  const first = new Date(month.getFullYear(), month.getMonth(), 1)
+  const offset = (first.getDay() + 6) % 7
+  const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate()
+  const total = Math.ceil((offset + days) / 7) * 7
+  return Array.from({ length: total }, (_, i) => addDays(first, i - offset))
+}
+
+const fmtMonth = new Intl.DateTimeFormat('uk-UA', { month: 'long' })
+export const formatMonth = (d: Date) => `${fmtMonth.format(d)} ${d.getFullYear()}`
 
 export const formatTime = (d: Date) =>
   `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
@@ -126,6 +147,8 @@ export function folderGroups(tag: string, tasks: Task[]): Group[] {
     ...(done.length ? [{ key: 'done', label: 'Зроблені', overdue: false, tasks: done }] : []),
   ]
 }
+
+export const tasksOnDay = (tasks: Task[], day: Date) => tasks.filter((t) => onDay(t, day)).sort(byOrder)
 
 export function countFor(view: View, tasks: Task[], now: Date): number {
   return groupsFor(view, tasks, now).reduce((sum, g) => sum + g.tasks.filter((t) => !t.done).length, 0)

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Task } from './store'
 import { buildFolders, NO_TAG } from './tags'
-import { folderGroups, groupsFor, moveToDay } from './views'
+import { folderGroups, groupsFor, monthGrid, moveToDay, onDayKeepingTime, tasksOnDay } from './views'
 
 const now = new Date(2026, 10, 5, 12, 0)
 const task = (over: Partial<Task>): Task => ({
@@ -57,6 +57,34 @@ describe('закріплені', () => {
       task({ title: 'зроблена', due_at: due(8), has_time: true, pinned: true, done: true }),
     ], now)
     expect(groups[0].tasks.map((t) => t.title)).toEqual(['закріплена', 'рання', 'зроблена'])
+  })
+})
+
+describe('календар', () => {
+  it('листопад 2026 починається в неділю, тож сітка йде з понеділка 26 жовтня на 6 тижнів', () => {
+    const grid = monthGrid(new Date(2026, 10, 15))
+    expect(grid.length).toBe(42)
+    expect([grid[0].getDate(), grid[0].getMonth(), grid[0].getDay()]).toEqual([26, 9, 1])
+    expect([grid[41].getDate(), grid[41].getMonth()]).toEqual([6, 11])
+  })
+
+  it('грудень 2026 вміщається в 5 тижнів', () => {
+    const grid = monthGrid(new Date(2026, 11, 1))
+    expect(grid.length).toBe(35)
+    expect([grid[0].getDate(), grid[0].getMonth()]).toEqual([30, 10])
+  })
+
+  it('задача без дати переноситься на день як задача на цілий день', () => {
+    const due = new Date(onDayKeepingTime(null, new Date(2026, 10, 20)))
+    expect([due.getDate(), due.getHours()]).toEqual([20, 12])
+  })
+
+  it('показує задачі лише вибраного дня', () => {
+    const list = tasksOnDay([
+      task({ title: 'так', due_at: new Date(2026, 10, 20, 9).toISOString() }),
+      task({ title: 'ні', due_at: new Date(2026, 10, 21, 9).toISOString() }),
+    ], new Date(2026, 10, 20))
+    expect(list.map((t) => t.title)).toEqual(['так'])
   })
 })
 

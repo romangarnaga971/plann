@@ -29,11 +29,13 @@ export function QuickAdd({
   now,
   folders,
   folder,
+  defaultDay,
   onAdd,
 }: {
   now: Date
   folders: Folder[]
   folder: string | null
+  defaultDay: Date | null
   onAdd: (parsed: ParsedLine) => void
 }) {
   const [text, setText] = useState('')
@@ -43,6 +45,9 @@ export function QuickAdd({
   const [pickerOpen, setPickerOpen] = useState(false)
   const parsed = useMemo(() => parseLine(text, now), [text, now])
   const tags = folder && !parsed.tags.includes(folder) ? [...parsed.tags, folder] : parsed.tags
+  // У календарі задача без дати потрапляє на вибраний день.
+  const dueAt =
+    parsed.dueAt ?? (defaultDay && new Date(defaultDay.getFullYear(), defaultDay.getMonth(), defaultDay.getDate(), 12))
 
   // Підказки для слова з #, яке зараз пишеться в кінці рядка.
   const typedTag = text.match(/#([^\s#]*)$/)?.[1]
@@ -97,7 +102,7 @@ export function QuickAdd({
   function submit(event: FormEvent) {
     event.preventDefault()
     if (!parsed.title) return
-    onAdd({ ...parsed, tags })
+    onAdd({ ...parsed, tags, dueAt, hasTime: parsed.dueAt ? parsed.hasTime : false })
     setText('')
   }
 
@@ -133,8 +138,8 @@ export function QuickAdd({
           {!hasText && <span className="max-md:hidden">Tab відкриває теги</span>}
           {hasText && (
             <>
-              Буде {parsed.dueAt ? 'на ' : ''}
-              <span className="font-medium text-fg">{formatWhen(parsed.dueAt, parsed.hasTime, now)}</span>
+              Буде {dueAt ? 'на ' : ''}
+              <span className="font-medium text-fg">{formatWhen(dueAt, parsed.dueAt ? parsed.hasTime : false, now)}</span>
               {tags.length > 0 && ` ${tags.map((t) => `#${t}`).join(' ')}`}
             </>
           )}
