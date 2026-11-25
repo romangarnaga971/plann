@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Task } from './store'
 import { buildFolders, NO_TAG } from './tags'
-import { folderGroups, groupsFor, monthGrid, moveToDay, onDayKeepingTime, tasksOnDay } from './views'
+import { folderGroups, groupsFor, monthGrid, moveToDay, onDayKeepingTime, reorder, tasksOnDay } from './views'
 
 const now = new Date(2026, 10, 5, 12, 0)
 const task = (over: Partial<Task>): Task => ({
@@ -14,6 +14,8 @@ const task = (over: Partial<Task>): Task => ({
   done_at: null,
   archived_at: null,
   pinned: false,
+  position: null,
+  folder_position: null,
   created_at: now.toISOString(),
   ...over,
 })
@@ -85,6 +87,37 @@ describe('календар', () => {
       task({ title: 'ні', due_at: new Date(2026, 10, 21, 9).toISOString() }),
     ], new Date(2026, 10, 20))
     expect(list.map((t) => t.title)).toEqual(['так'])
+  })
+})
+
+describe('ручний порядок', () => {
+  const due = (h: number) => new Date(2026, 10, 5, h).toISOString()
+  const titles = (list: ReturnType<typeof task>[]) =>
+    groupsFor('today', list, now)[0].tasks.map((t) => t.title)
+  const a = task({ title: 'а', due_at: due(9), has_time: true })
+  const b = task({ title: 'б', due_at: due(10), has_time: true })
+  const c = task({ title: 'в', due_at: due(11), has_time: true })
+
+  it('переставлений список лишається в новому порядку', () => {
+    expect(titles(reorder([c, a, b], 'position', 100))).toEqual(['в', 'а', 'б'])
+  })
+
+  it('повторна перестановка міняє лише зачеплені задачі', () => {
+    const [x, y, z] = reorder([a, b, c], 'position', 100)
+    const changed = reorder([x, z, y], 'position', 500)
+    expect(changed.map((t) => [t.title, t.position])).toEqual([['в', 101], ['б', 102]])
+  })
+
+  it('нова задача стає після переставлених', () => {
+    const ordered = reorder([b, a], 'position', 100)
+    const fresh = task({ title: 'нова', due_at: due(8), has_time: true })
+    expect(titles([fresh, ...ordered])).toEqual(['б', 'а', 'нова'])
+  })
+
+  it('порядок у папці не залежить від порядку в днях', () => {
+    const list = reorder([c, b, a], 'folder_position', 100).map((t) => ({ ...t, tags: ['дім'] }))
+    expect(folderGroups('дім', list)[0].tasks.map((t) => t.title)).toEqual(['в', 'б', 'а'])
+    expect(titles(list)).toEqual(['а', 'б', 'в'])
   })
 })
 

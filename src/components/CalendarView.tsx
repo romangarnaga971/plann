@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import type { Task } from '../lib/store'
 import type { Folder } from '../lib/tags'
+import { SortableList } from './SortableList'
 import { formatLongDate, formatMonth, isSameDay, monthGrid, startOfDay, tasksOnDay } from '../lib/views'
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд']
@@ -15,6 +16,7 @@ export function CalendarView({
   onMonth,
   onSelect,
   onDropTask,
+  onReorder,
   renderTask,
 }: {
   month: Date
@@ -25,7 +27,8 @@ export function CalendarView({
   onMonth: (delta: number) => void
   onSelect: (day: Date) => void
   onDropTask: (id: string, day: Date) => void
-  renderTask: (task: Task) => ReactNode
+  onReorder: (ordered: Task[]) => void
+  renderTask: (task: Task, handle: ReactNode) => ReactNode
 }) {
   const [dropTarget, setDropTarget] = useState<string | null>(null)
   const today = startOfDay(now)
@@ -116,7 +119,7 @@ export function CalendarView({
           <p className="px-4 text-muted">На цей день задач немає. Напишіть задачу внизу, і вона буде на цей день.</p>
         ) : (
           <>
-            <ul>{dayTasks.map(renderTask)}</ul>
+            <SortableList tasks={dayTasks} onReorder={onReorder} renderTask={renderTask} />
             <p className="px-4 pt-3 text-sm text-muted max-md:hidden">
               Щоб перенести задачу, перетягніть її на інший день.
             </p>

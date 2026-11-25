@@ -2,7 +2,7 @@ import { useEffect, useRef, type RefObject } from 'react'
 
 // Жести не повинні заважати полям вводу й формі редагування.
 const isExcluded = (target: EventTarget | null) =>
-  target instanceof Element && !!target.closest('input, textarea, select, form')
+  target instanceof Element && !!target.closest('input, textarea, select, form, [data-drag-handle]')
 
 // onSwipe отримує 1 для наступного вигляду, -1 для попереднього й повертає,
 // чи вигляд змінився. Працює дотиком на телефоні й двома пальцями на трекпаді.

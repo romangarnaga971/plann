@@ -11,15 +11,18 @@ import {
   isSameDay,
   moveToDay,
   onDayKeepingTime,
+  reorder,
   startOfDay,
   viewSubtitle,
   VIEWS,
+  type OrderField,
   type View,
 } from '../lib/views'
 import { ArchiveList } from './ArchiveList'
 import { CalendarView } from './CalendarView'
 import { FolderCabinet } from './FolderCabinet'
 import { QuickAdd } from './QuickAdd'
+import { SortableList } from './SortableList'
 import { TaskRow } from './TaskRow'
 
 interface Toast {
@@ -143,6 +146,8 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
       done_at: null,
       archived_at: null,
       pinned: false,
+      position: null,
+      folder_position: null,
       created_at: new Date().toISOString(),
     })
     showToast({ text: `Додано: ${formatWhen(parsed.dueAt, parsed.hasTime, new Date())}` })
@@ -188,6 +193,10 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
         saveTask(task)
       },
     })
+  }
+
+  function reorderTasks(ordered: Task[], field: OrderField) {
+    for (const task of reorder(ordered, field, Date.now())) saveTask(task)
   }
 
   function archiveTask(task: Task) {
@@ -321,10 +330,12 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
               onMonth={shiftCalendarMonth}
               onSelect={selectCalendarDay}
               onDropTask={moveTaskToDay}
-              renderTask={(task) => (
+              onReorder={(ordered) => reorderTasks(ordered, 'position')}
+              renderTask={(task, handle) => (
                 <TaskRow
                   key={task.id}
                   task={task}
+                  handle={handle}
                   overdue={false}
                   draggable
                   folders={tagFolders}
@@ -369,11 +380,14 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
                     )}
                   </div>
                 )}
-                <ul>
-                  {group.tasks.map((task) => (
+                <SortableList
+                  tasks={group.tasks}
+                  onReorder={(ordered) => reorderTasks(ordered, openFolder ? 'folder_position' : 'position')}
+                  renderTask={(task, handle) => (
                     <TaskRow
                       key={task.id}
                       task={task}
+                      handle={handle}
                       overdue={group.overdue}
                       showDate={openFolder !== null}
                       folders={tagFolders}
@@ -383,8 +397,8 @@ export function Planner({ store, onSignOut }: { store: TaskStore; onSignOut?: ()
                       onSave={saveTask}
                       onDelete={() => deleteTask(task)}
                     />
-                  ))}
-                </ul>
+                  )}
+                />
               </section>
               )
             })}

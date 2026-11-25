@@ -12,6 +12,9 @@ create table if not exists public.tasks (
 
 alter table public.tasks add column if not exists archived_at timestamptz;
 alter table public.tasks add column if not exists pinned boolean not null default false;
+-- Ручний порядок: окремо для списків за днями й окремо для папок.
+alter table public.tasks add column if not exists position double precision;
+alter table public.tasks add column if not exists folder_position double precision;
 
 create index if not exists tasks_user_due_idx on public.tasks (user_id, due_at);
 

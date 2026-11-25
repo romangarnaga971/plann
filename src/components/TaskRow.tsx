@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from 'react'
+import { useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import type { Task } from '../lib/store'
 import { defaultColor, normalizeTag, tagTextColor, type Folder } from '../lib/tags'
 import { addDays, formatShortDate, formatTime } from '../lib/views'
+import { segmentOf } from './SortableList'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const toDateInput = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
@@ -123,6 +124,7 @@ export function TaskRow({
   overdue,
   showDate,
   draggable,
+  handle,
   folders,
   onToggle,
   onArchive,
@@ -134,6 +136,7 @@ export function TaskRow({
   overdue: boolean
   showDate?: boolean
   draggable?: boolean
+  handle?: ReactNode
   folders: Folder[]
   onToggle: () => void
   onArchive: () => void
@@ -142,6 +145,31 @@ export function TaskRow({
   onDelete: () => void
 }) {
   const [editing, setEditing] = useState(false)
+  const rowRef = useRef<HTMLLIElement>(null)
+  const fillRef = useRef<HTMLSpanElement>(null)
+  const highlighted = task.pinned && !task.done
+  const wasPinned = useRef(task.pinned)
+
+  // Заливка розходиться від шпильки. Анімація стартує вже після того, як рядок став на нове місце.
+  useLayoutEffect(() => {
+    if (wasPinned.current === task.pinned) return
+    wasPinned.current = task.pinned
+    const row = rowRef.current
+    const fill = fillRef.current
+    const pin = row?.querySelector('[data-pin]')
+    if (!row || !fill || !pin || matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const box = row.getBoundingClientRect()
+    const icon = pin.getBoundingClientRect()
+    const x = icon.left + icon.width / 2 - box.left
+    const y = icon.top + icon.height / 2 - box.top
+    const radius = Math.hypot(Math.max(x, box.width - x), Math.max(y, box.height - y))
+    const frames = [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`]
+    if (!task.pinned) frames.reverse()
+    fill.animate(
+      frames.map((clipPath) => ({ clipPath, opacity: 1 })),
+      { duration: 450, easing: 'ease-out' },
+    )
+  }, [task.pinned])
 
   if (editing) {
     return (
@@ -166,13 +194,20 @@ export function TaskRow({
 
   return (
     <li
-      className="flex items-start border-b border-line"
+      ref={rowRef}
+      className="task-row relative isolate flex items-start border-b border-line"
+      data-segment={segmentOf(task)}
       draggable={draggable}
       onDragStart={(event) => {
         event.dataTransfer.setData('text/x-task', task.id)
         event.dataTransfer.effectAllowed = 'move'
       }}
     >
+      <span
+        ref={fillRef}
+        aria-hidden
+        className={`pointer-events-none absolute inset-0 -z-10 bg-pinned ${highlighted ? 'opacity-100' : 'opacity-0'}`}
+      />
       <button
         type="button"
         role="checkbox"
@@ -218,10 +253,11 @@ export function TaskRow({
       {!task.done && (
         <button
           type="button"
+          data-pin
           onClick={onPin}
           aria-pressed={task.pinned}
           aria-label={task.pinned ? `Відкріпити: ${task.title}` : `Закріпити: ${task.title}`}
-          className={`mr-1 grid size-12 shrink-0 place-items-center ${task.pinned ? 'text-accent-bright' : 'text-muted'}`}
+          className={`grid h-12 w-10 shrink-0 place-items-center ${handle ? '' : 'mr-1'} ${task.pinned ? 'text-accent-bright' : 'text-muted'}`}
         >
           <svg
             viewBox="0 0 24 24"
@@ -243,6 +279,7 @@ export function TaskRow({
           В архів
         </button>
       )}
+      {handle}
     </li>
   )
 }

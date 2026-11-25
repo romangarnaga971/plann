@@ -79,9 +79,30 @@ export function viewSubtitle(view: View, now: Date): string | null {
   return null
 }
 
+export type OrderField = 'position' | 'folder_position'
+
+// Задачі, яких ще не переставляли, ідуть після переставлених.
+function byPosition(a: Task, b: Task, field: OrderField) {
+  const x = a[field] ?? Infinity
+  const y = b[field] ?? Infinity
+  return x === y ? 0 : x < y ? -1 : 1
+}
+
+// Нові значення порядку для переставленого списку. Наявні значення лише міняються місцями,
+// тож порядок відносно задач з інших списків майже не зсувається. Повертає тільки змінені задачі.
+export function reorder(ordered: Task[], field: OrderField, base: number): Task[] {
+  const keys = ordered.flatMap((t) => t[field] ?? []).sort((a, b) => a - b)
+  let next = keys.length ? keys[keys.length - 1] : base - 1
+  while (keys.length < ordered.length) keys.push(++next)
+  for (let i = 1; i < keys.length; i++) if (keys[i] <= keys[i - 1]) keys[i] = keys[i - 1] + 0.001
+  return ordered.flatMap((task, i) => (task[field] === keys[i] ? [] : [{ ...task, [field]: keys[i] }]))
+}
+
 function byOrder(a: Task, b: Task) {
   if (a.done !== b.done) return a.done ? 1 : -1
   if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1
+  const manual = byPosition(a, b, 'position')
+  if (manual) return manual
   // Задачі на цілий день ідуть перед задачами з часом.
   if (a.has_time !== b.has_time) return a.has_time ? 1 : -1
   if (a.has_time && a.due_at && b.due_at && a.due_at !== b.due_at) return a.due_at < b.due_at ? -1 : 1
@@ -98,7 +119,7 @@ const overdueGroup = (tasks: Task[], now: Date): Group[] => {
     .sort((a, b) => {
       if (a.done !== b.done) return a.done ? 1 : -1
       if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1
-      return a.due_at! < b.due_at! ? -1 : 1
+      return byPosition(a, b, 'position') || (a.due_at! < b.due_at! ? -1 : 1)
     })
   return overdue.length ? [{ key: 'overdue', label: 'Прострочені', overdue: true, tasks: overdue, moveTo: 0 }] : []
 }
@@ -138,6 +159,8 @@ export function folderGroups(tag: string, tasks: Task[]): Group[] {
     .filter((t) => !t.done)
     .sort((a, b) => {
       if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1
+      const manual = byPosition(a, b, 'folder_position')
+      if (manual) return manual
       if (!a.due_at || !b.due_at) return a.due_at ? -1 : b.due_at ? 1 : a.created_at < b.created_at ? -1 : 1
       return a.due_at < b.due_at ? -1 : 1
     })
